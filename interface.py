@@ -355,40 +355,5 @@ while True:
         teleg.sentTelegramm()
         time.sleep(sec*30)
 
-# pub_ = '004a71fc6f91c044a31d4dcb23352316'
-# sec_ = '023a49058271aedff9c1bc2b0b047df0fa8cf6c7'
 
-
-
-
-
-
-
-# kol=20
-# ticker="RU_VTBR.KZ"
-# first=0
-# qty=1000
-# buyType=1
-# sellType=3
-
-# sellDict={0:0}
-# buyDict={0:0}
-# pricesellDict={0:0}
-# pricebuyDict={0:0}
-# order_type_id=2 # Команда выполнения запроса. Тип приказа: 1 – Рыночный Приказ (Market); 2 – Приказ по заданной цене (Limit); 3 – Рыночный Стоп-приказ (Stop); 4 – Стоп-приказ по заданной цене (Stop Limit)
-
-# pub_ = '004a71fc6f91c044a31d4dcb23352316'
-# sec_ = '023a49058271aedff9c1bc2b0b047df0fa8cf6c7'
-# orderid=OrderPut(pub_,sec_,"HSBK.KZ",3,2,10,120,0,3,0)
-# print(orderid['order_id'])
-
-
-
-
-
-# readBuy=np.load('buyDict.npy', allow_pickle=True).item()
-# readSell=np.load('sellDict.npy', allow_pickle=True).item()
-# first=0
-# np.save('first.npy',first)
-# first=np.load('first.npy', allow_pickle=True).item()
             
