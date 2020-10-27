@@ -99,16 +99,16 @@ class tradernet:
                 if delres['result']==-1:
                     proverka=1
                     self.textForTelegram+=("Order = "+str(self.order_id_del)+" удален \n")
-                   
+                
                 else:
                     self.textForTelegram+=str(delres)+"\n"
-             
+            
         if proverka==-1:
             self.textForTelegram+="Открытых ордеров для отмены не найдено \n"
- 
+
         elif proverka==1:
             self.textForTelegram+="Открытые ордера отменены \n"
-      
+    
     def statusMarket(self):
         res=requests.get("https://tradernet.ru/securities/export?tickers="+self.ticker+"&params=bap+bbp+marketStatus")
         getStak=json.loads(res.content)
@@ -177,6 +177,10 @@ class gridStrategy:
     listPriceBuy={0:0}
     listPriceSell={0:0}
     stepPrice=0.0005
+    minPriceBuy=1
+    minPriceSell=1
+    maxPriceBuy=0
+    maxPriceSell=0
     def openOrders(self):
         for index in range(self.coundOrder):
             # указываем тип ордера на данный момент это покупка
@@ -200,20 +204,22 @@ class gridStrategy:
             self.listPriceSell[index]=self.trader.limit_price
     def checkOrderBuy(self):
         ind=0   
-        minPrice=1
+        self.minPriceBuy=1
+        self.maxPriceBuy=0
         self.listOrders={0:0}
         self.listPrice={0:0}
         for index in self.listOrderBuy:
             for order_id in self.result['result']['orders']['order']:
                 if ((self.listOrderBuy[index])==order_id['id']):
                     self.textForTelegram+=((" id="+str(order_id['id'])+" stat="+str(order_id['stat'])+" b/s="+str(order_id['oper'])+" p=" + str(order_id['p'])+"\n"))
-                    if minPrice>order_id['p']:
-                        minPrice=order_id['p']
+                    if self.minPriceBuy>order_id['p']:
+                        self.minPriceBuy=order_id['p']
+                    if self.maxPriceBuy<order_id['p']:
+                        self.maxPriceBuy=order_id['p']
                     if order_id['stat']==21:
                         self.trader.limit_price=order_id['p']+self.stepPrice
                         self.trader.action_id=3
                         self.listOrderSell[len(self.listOrderSell)]=self.trader.OrderPut()
-                        print(self.listOrderSell)
                         self.listPriceSell[len(self.listPriceSell)]=self.trader.limit_price
                         self.textForTelegram+="создан ордер S id="+str(self.listOrderSell[len(self.listOrderSell)-1 ])+" p="+str(self.trader.limit_price)+"\n"
                     else:
@@ -222,26 +228,49 @@ class gridStrategy:
                         ind+=1
                     break
         self.listOrderBuy=self.listOrders
-        self.listPriceBuy=self.listPrice
+        self.listPriceBuy=self.listPrice                    
+    def checkCountOrderBuy(self):
         if len(self.listOrderBuy)<self.coundOrder:
             count = self.coundOrder-len(self.listOrderBuy)
             for index in range(count):
-                self.trader.limit_price=minPrice-self.stepPrice
-                minPrice=self.trader.limit_price
+                self.trader.limit_price=self.minPriceBuy-self.stepPrice
+                self.minPriceBuy=self.trader.limit_price
                 self.trader.action_id=1
                 self.listOrderBuy[len(self.listOrderBuy)]=self.trader.OrderPut()
-                self.listPriceBuy[len(self.listPriceBuy)]=minPrice
+                self.listPriceBuy[len(self.listPriceBuy)]=self.minPriceBuy
+    def checkBeetwenOrderBuy(self):
+        countChek=(self.maxPriceBuy-self.minPriceBuy)/self.stepPrice
+        priceCheck=self.minPriceBuy
+        checkstatus=0
+        for index in range(int(countChek)-1):
+            priceCheck+=self.stepPrice
+            priceCheck=round(priceCheck,4)
+            count = len(self.listPriceBuy)
+            checkstatus=0
+            for index in range(count):                
+                if self.listPriceBuy[index]==priceCheck:
+                    checkstatus=1
+            if checkstatus==0:
+                self.trader.limit_price=priceCheck
+                self.trader.action_id=1
+                self.listOrderBuy[len(self.listOrderBuy)]=self.trader.OrderPut()
+                self.listPriceBuy[len(self.listPriceBuy)]=priceCheck
+
+
     def checkOrderSell(self):
         ind=0
-        maxPrice=0
+        self.maxPriceSell=0
+        self.minPriceSell=1
         self.listOrders={0:0}
         self.listPrice={0:0}
         for index in self.listOrderSell:
             for order_id in self.result['result']['orders']['order']:
                 if ((self.listOrderSell[index])==order_id['id']):
                     self.textForTelegram+=((" id="+str(order_id['id'])+" stat="+str(order_id['stat'])+" b/s="+str(order_id['oper'])+" p=" + str(order_id['p'])+"\n"))
-                    if maxPrice<order_id['p']:
-                        maxPrice=order_id['p']
+                    if self.maxPriceSell<order_id['p']:
+                        self.maxPriceSell=order_id['p']
+                    if self.minPriceSell>order_id['p']:
+                        self.minPriceSell=order_id['p']
                     if order_id['stat']==21:
                         self.trader.limit_price=order_id['p']+self.stepPrice
                         self.trader.action_id=1
@@ -255,23 +284,40 @@ class gridStrategy:
                     break
         self.listOrderSell=self.listOrders
         self.listPriceSell=self.listPrice
-        print(len(self.listOrderSell))
-        print(len(self.listOrderSell)<self.coundOrder)
+    def checkCountOrderSell(self):
         if len(self.listOrderSell)<self.coundOrder:
             count = self.coundOrder-len(self.listOrderSell)
             for index in range(count):
-                self.trader.limit_price=maxPrice+self.stepPrice
-                maxPrice=self.trader.limit_price
+                self.trader.limit_price=self.maxPriceSell+self.stepPrice
+                self.maxPriceSell=self.trader.limit_price
                 self.trader.action_id=3
                 self.listOrderSell[len(self.listOrderSell)]=self.trader.OrderPut()
-                self.listPriceSell[len(self.listPriceSell)]=maxPrice
+                self.listPriceSell[len(self.listPriceSell)]=self.maxPriceSell
+    def checkBeetwenOrderSell(self):
+        countChek=(self.maxPriceSell-self.minPriceSell)/self.stepPrice
+        priceCheck=self.minPriceSell
+        checkstatus=0
+        for index in range(int(countChek)-1):
+            priceCheck+=self.stepPrice
+            priceCheck=round(priceCheck,4)
+            count = len(self.listPriceSell)
+            checkstatus=0
+            for index in range(count):               
+                if self.listPriceSell[index]==priceCheck:
+                    checkstatus=1
+            if checkstatus==0:
+                self.trader.limit_price=priceCheck
+                self.trader.action_id=3
+                self.listOrderSell[len(self.listOrderSell)]=self.trader.OrderPut()
+                self.listPriceSell[len(self.listPriceSell)]=priceCheck
+    
     def importOrdersSave(self):
             self.listOrderBuy=self.listOrder['ordersBuy']
             self.listOrderSell=self.listOrder['orderSell']
             self.listPriceBuy=self.listOrder['priceBuy']
             self.listPriceSell=self.listOrder['priceSell']
             self.listOrder={0:0}
-
+    
 # подключение класса телеграмм
 teleg=telegram()
 # подключение класса стратегии сетка
@@ -305,57 +351,62 @@ grid.stepPrice=0.0005
 trader.qty=1000
 # указываем тикер который будем покупать\продавать
 trader.ticker="RU_VTBR.KZ"
-
+# пауза
 sec=60
 grid.trader=trader
 # grid.checkOrder()
 # listOrders=google.importOrders()
-
 while True:
-    # проверка статуса tickera
-    if trader.statusMarket():
-    # if True:
+    try:
+        # проверка статуса tickera
+        if trader.statusMarket():
+        # if True:
 
-       
+        
 
-        if google.checkStatus()=="0":
-            # узнаем средную цену в стакане
-            trader.allCancelOrder()
-            teleg.text=trader.textForTelegram
+            if google.checkStatus()=="0":
+                # узнаем средную цену в стакане
+                trader.allCancelOrder()
+                teleg.text=trader.textForTelegram
+                teleg.sentTelegramm()
+                grid.avgPrice=trader.avgStakanPrice()
+                grid.openOrders()
+                google.listOrderBuy=grid.listOrderBuy
+                google.listOrderSell=grid.listOrderSell
+                google.listPriceBuy=grid.listPriceBuy
+                google.listPriceSell=grid.listPriceSell
+                google.sendOrders()
+            elif google.checkStatus()=="1":
+                grid.listOrder=google.importOrders()          
+                grid.importOrdersSave()
+                grid.result=trader.OrdgetNotifyOrderJson()
+                grid.textForTelegram=""
+                # проверка buy ордеров 
+                grid.checkCountOrderBuy()
+                grid.checkOrderBuy()
+                grid.checkBeetwenOrderBuy()
+                # проверка sell ордеров
+                grid.checkOrderSell()
+                grid.checkBeetwenOrderSell()
+                grid.checkCountOrderSell()
+                # текст для телеграмм и отправка
+                teleg.text=grid.textForTelegram
+                teleg.sentTelegramm()
+                # подготовка данных для отправки в гугл таблицу
+                google.listOrderBuy=grid.listOrderBuy
+                google.listOrderSell=grid.listOrderSell
+                google.listPriceBuy=grid.listPriceBuy
+                google.listPriceSell=grid.listPriceSell
+                # отправка данных в гугл таблицу
+                google.sendOrders()
+
+                time.sleep(sec)
+                
+        else:
+        
+            teleg.text="Биржа закрыта"
             teleg.sentTelegramm()
-            grid.avgPrice=trader.avgStakanPrice()
-            grid.openOrders()
-            google.listOrderBuy=grid.listOrderBuy
-            google.listOrderSell=grid.listOrderSell
-            google.listPriceBuy=grid.listPriceBuy
-            google.listPriceSell=grid.listPriceSell
-            google.sendOrders()
-        elif google.checkStatus()=="1":
-            grid.listOrder=google.importOrders()          
-            grid.importOrdersSave()
-            grid.result=trader.OrdgetNotifyOrderJson()
-            grid.textForTelegram=""
-            grid.checkOrderBuy()
-            grid.checkOrderSell()
-            teleg.text=grid.textForTelegram
-            teleg.sentTelegramm()
-
-            google.listOrderBuy=grid.listOrderBuy
-            google.listOrderSell=grid.listOrderSell
-            google.listPriceBuy=grid.listPriceBuy
-            google.listPriceSell=grid.listPriceSell
-
-            google.sendOrders()
-
-            time.sleep(sec)
-            
-    else:
-       
-        teleg.text="Биржа закрыта"
+            time.sleep(sec*30)
+    except:
+        teleg.text="ошибка"
         teleg.sentTelegramm()
-        time.sleep(sec*30)
-
-
-
-
-
