@@ -382,9 +382,10 @@ while True:
                 grid.result=trader.OrdgetNotifyOrderJson()
                 grid.textForTelegram=""
                 # проверка buy ордеров 
-                grid.checkCountOrderBuy()
+                
                 grid.checkOrderBuy()
                 grid.checkBeetwenOrderBuy()
+                grid.checkCountOrderBuy()
                 # проверка sell ордеров
                 grid.checkOrderSell()
                 grid.checkBeetwenOrderSell()
